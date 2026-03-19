@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Dex + OAuth2 Proxy are installed via Helm.
+# Run install.sh to deploy both components.
+#
+# Components:
+#   - Dex (OIDC identity provider with static user)
+#   - OAuth2 Proxy (authentication proxy for ingress)
+#
+# See: install.sh, values.yaml, oauth2-proxy-values.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: dex-helm-values
+    namespace: security
+    files:
+      - values.yaml
+      - oauth2-proxy-values.yaml

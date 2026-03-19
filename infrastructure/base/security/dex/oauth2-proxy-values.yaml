@@ -1,0 +1,44 @@
+config:
+  clientID: oauth2-proxy
+  clientSecret: kubequest-oauth2-proxy-secret
+  cookieSecret: ""  # Will be auto-generated if empty
+
+  configFile: |-
+    provider = "oidc"
+    provider_display_name = "Dex"
+    oidc_issuer_url = "https://dex.kubequest.local"
+    email_domains = ["*"]
+    cookie_secure = true
+    cookie_samesite = "lax"
+    cookie_name = "_kubequest_oauth2"
+    cookie_expire = "168h"
+    cookie_refresh = "1h"
+    upstreams = ["static://200"]
+    skip_provider_button = true
+    redirect_url = "https://oauth2.kubequest.local/oauth2/callback"
+    set_xauthrequest = true
+    set_authorization_header = true
+    pass_access_token = true
+    pass_authorization_header = true
+    silence_ping_logging = true
+
+ingress:
+  enabled: true
+  className: nginx
+  path: /oauth2
+  pathType: Prefix
+  hosts:
+    - oauth2.kubequest.local
+
+nodeSelector:
+  node-type: application
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+replicaCount: 1

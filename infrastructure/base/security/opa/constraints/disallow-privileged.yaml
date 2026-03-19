@@ -1,0 +1,72 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdisallowprivileged
+  labels:
+    app.kubernetes.io/name: opa-gatekeeper
+    app.kubernetes.io/part-of: kubequest
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sDisallowPrivileged
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties: {}
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sdisallowprivileged
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          container.securityContext.privileged == true
+          msg := sprintf("Container '%v' in %v '%v/%v' is running in privileged mode, which is not allowed", [
+            container.name,
+            input.review.kind.kind,
+            input.review.object.metadata.namespace,
+            input.review.object.metadata.name
+          ])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+          container.securityContext.privileged == true
+          msg := sprintf("Init container '%v' in %v '%v/%v' is running in privileged mode, which is not allowed", [
+            container.name,
+            input.review.kind.kind,
+            input.review.object.metadata.namespace,
+            input.review.object.metadata.name
+          ])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.ephemeralContainers[_]
+          container.securityContext.privileged == true
+          msg := sprintf("Ephemeral container '%v' in %v '%v/%v' is running in privileged mode, which is not allowed", [
+            container.name,
+            input.review.kind.kind,
+            input.review.object.metadata.namespace,
+            input.review.object.metadata.name
+          ])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDisallowPrivileged
+metadata:
+  name: disallow-privileged-containers
+  labels:
+    app.kubernetes.io/name: opa-gatekeeper
+    app.kubernetes.io/part-of: kubequest
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "DaemonSet", "StatefulSet"]
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system

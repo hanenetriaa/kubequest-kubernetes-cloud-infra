@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# OPA Gatekeeper is installed via Helm.
+# Run install.sh to deploy Gatekeeper and apply constraints.
+#
+# Constraints:
+#   - require-labels: Deployments must have app.kubernetes.io/name label
+#   - require-resource-limits: Containers must have resource limits
+#   - disallow-privileged: Privileged containers are not allowed
+#
+# See: install.sh, constraints/
+
+resources:
+  - constraints/require-labels.yaml
+  - constraints/require-resource-limits.yaml
+  - constraints/disallow-privileged.yaml

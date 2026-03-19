@@ -1,0 +1,28 @@
+Thank you for installing {{ include "sample-app.fullname" . }}!
+
+Your Laravel application has been deployed with the following configuration:
+
+{{- if .Values.ingress.enabled }}
+
+1. Access your application at:
+   http://{{ .Values.ingress.host }}
+
+   Make sure your ingress controller is running and DNS is configured.
+{{- else }}
+
+1. Get the application URL by running:
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "sample-app.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+   kubectl port-forward $POD_NAME 8080:80
+   echo "Visit http://127.0.0.1:8080"
+{{- end }}
+
+2. Database:
+   MySQL is deployed as a dependency and will be available at:
+   {{ .Release.Name }}-mysql:3306
+
+{{- if .Values.autoscaling.enabled }}
+
+3. Autoscaling:
+   HPA is enabled with min={{ .Values.autoscaling.minReplicas }} and max={{ .Values.autoscaling.maxReplicas }} replicas.
+   Target CPU utilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}%
+{{- end }}

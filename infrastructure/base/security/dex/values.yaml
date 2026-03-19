@@ -1,0 +1,57 @@
+image:
+  tag: v2.39.1
+
+config:
+  issuer: https://dex.kubequest.local
+
+  storage:
+    type: kubernetes
+    config:
+      inCluster: true
+
+  web:
+    http: 0.0.0.0:5556
+
+  oauth2:
+    skipApprovalScreen: true
+    responseTypes:
+      - code
+      - token
+      - id_token
+
+  staticClients:
+    - id: oauth2-proxy
+      name: OAuth2 Proxy
+      secret: kubequest-oauth2-proxy-secret
+      redirectURIs:
+        - https://oauth2.kubequest.local/oauth2/callback
+
+  enablePasswordDB: true
+  staticPasswords:
+    - email: admin@kubequest.local
+      # bcrypt hash of "password"
+      hash: "$2a$12$4K/VkmDd1q1Oby09nNhYuOKSmnUJrvGylOmRcrPkKQXFR1l0QbtRG"
+      username: admin
+      userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+
+  connectors: []
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: dex.kubequest.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+nodeSelector:
+  node-type: application
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

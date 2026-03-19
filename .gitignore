@@ -1,0 +1,33 @@
+# Dependencies
+app/vendor/
+node_modules/
+
+# Environment
+.env
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Laravel
+app/storage/logs/*.log
+app/storage/framework/cache/data/*
+app/storage/framework/sessions/*
+app/storage/framework/views/*
+
+# Helm
+charts/sample-app/charts/
+charts/sample-app/Chart.lock
+
+# PDFs (project docs, not to be committed)
+*.pdf
+
+# Zip archives
+*.zip

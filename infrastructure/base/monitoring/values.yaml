@@ -1,0 +1,173 @@
+grafana:
+  enabled: true
+  adminPassword: kubequest
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.kubequest.local
+    path: /
+    pathType: Prefix
+
+  nodeSelector:
+    node-type: monitoring
+  tolerations:
+    - key: node-type
+      operator: Equal
+      value: monitoring
+      effect: NoSchedule
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.logging:3100
+      access: proxy
+      isDefault: false
+
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+
+    nodeSelector:
+      node-type: monitoring
+    tolerations:
+      - key: node-type
+        operator: Equal
+        value: monitoring
+        effect: NoSchedule
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    nodeSelector:
+      node-type: monitoring
+    tolerations:
+      - key: node-type
+        operator: Equal
+        value: monitoring
+        effect: NoSchedule
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by:
+        - namespace
+        - alertname
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "null"
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
+    receivers:
+      - name: "null"
+    inhibit_rules:
+      - source_matchers:
+          - severity = "critical"
+        target_matchers:
+          - severity = "warning"
+        equal:
+          - namespace
+          - alertname
+
+prometheusOperator:
+  nodeSelector:
+    node-type: monitoring
+  tolerations:
+    - key: node-type
+      operator: Equal
+      value: monitoring
+      effect: NoSchedule
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  admissionWebhooks:
+    patch:
+      nodeSelector:
+        node-type: monitoring
+      tolerations:
+        - key: node-type
+          operator: Equal
+          value: monitoring
+          effect: NoSchedule
+
+kubeStateMetrics:
+  nodeSelector:
+    node-type: monitoring
+  tolerations:
+    - key: node-type
+      operator: Equal
+      value: monitoring
+      effect: NoSchedule
+
+kube-state-metrics:
+  nodeSelector:
+    node-type: monitoring
+  tolerations:
+    - key: node-type
+      operator: Equal
+      value: monitoring
+      effect: NoSchedule
+
+nodeExporter:
+  tolerations:
+    - operator: Exists
+
+prometheus-node-exporter:
+  tolerations:
+    - operator: Exists

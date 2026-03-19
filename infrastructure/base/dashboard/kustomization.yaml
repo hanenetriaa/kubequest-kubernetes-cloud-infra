@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Kubernetes Dashboard is installed via Helm.
+# Run install.sh to deploy using the values.yaml in this directory.
+#
+# Additional resources:
+#   - admin-user ServiceAccount + ClusterRoleBinding
+#
+# See: install.sh, values.yaml, admin-user.yaml
+
+resources:
+  - admin-user.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: dashboard-helm-values
+    namespace: kubernetes-dashboard
+    files:
+      - values.yaml

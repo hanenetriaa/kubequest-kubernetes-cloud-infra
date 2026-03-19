@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Monitoring stack (kube-prometheus-stack) is installed via Helm.
+# Run install.sh to deploy using the values.yaml in this directory.
+#
+# Components:
+#   - Prometheus (with 10Gi persistent storage, 7d retention)
+#   - Grafana (with ingress at grafana.kubequest.local)
+#   - Alertmanager
+#   - Node Exporter
+#   - Kube State Metrics
+#
+# See: install.sh, values.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: monitoring-helm-values
+    namespace: monitoring
+    files:
+      - values.yaml

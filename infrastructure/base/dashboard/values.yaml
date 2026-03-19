@@ -1,0 +1,26 @@
+app:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - dashboard.kubequest.local
+    pathType: Prefix
+    issuer:
+      scope: disabled
+
+  settings:
+    global:
+      itemsPerPage: 20
+      clusterName: kubequest
+      namespaceFallbackList:
+        - sample-app
+        - monitoring
+        - logging
+        - ingress-nginx
+
+kong:
+  proxy:
+    type: ClusterIP
+
+  nodeSelector:
+    node-type: application

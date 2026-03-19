@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-backup-pvc
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: mysql-backup
+    app.kubernetes.io/part-of: sample-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: mysql-backup
+    app.kubernetes.io/part-of: sample-app
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql-backup
+        app.kubernetes.io/part-of: sample-app
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: mysql-backup
+            app.kubernetes.io/part-of: sample-app
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: mysql-backup
+              image: mysql:8.0
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_FILE="/backups/app_database-${TIMESTAMP}.sql"
+                  echo "[INFO] Demarrage du backup MySQL - ${TIMESTAMP}"
+                  mysqldump \
+                    -h "${MYSQL_HOST}" \
+                    -u "${MYSQL_USER}" \
+                    -p"${MYSQL_PASSWORD}" \
+                    --single-transaction \
+                    --routines \
+                    --triggers \
+                    app_database > "${BACKUP_FILE}"
+                  echo "[INFO] Backup termine: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
+                  # Nettoyage des backups de plus de 7 jours
+                  find /backups -name "app_database-*.sql" -mtime +7 -delete
+                  echo "[INFO] Nettoyage des anciens backups termine."
+              env:
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: sample-app-mysql
+                      key: host
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: sample-app-mysql
+                      key: username
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: sample-app-mysql
+                      key: password
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: mysql-backup-pvc

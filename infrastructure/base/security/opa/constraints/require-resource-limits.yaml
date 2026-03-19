@@ -1,0 +1,84 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequireresourcelimits
+  labels:
+    app.kubernetes.io/name: opa-gatekeeper
+    app.kubernetes.io/part-of: kubequest
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireResourceLimits
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            resources:
+              type: array
+              description: "List of required resource limit types (cpu, memory)"
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequireresourcelimits
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          required := input.parameters.resources[_]
+          not container.resources.limits[required]
+          msg := sprintf("Container '%v' in %v '%v/%v' does not have a '%v' resource limit set", [
+            container.name,
+            input.review.kind.kind,
+            input.review.object.metadata.namespace,
+            input.review.object.metadata.name,
+            required
+          ])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          not container.resources
+          msg := sprintf("Container '%v' in %v '%v/%v' does not have any resource limits set", [
+            container.name,
+            input.review.kind.kind,
+            input.review.object.metadata.namespace,
+            input.review.object.metadata.name
+          ])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          container.resources
+          not container.resources.limits
+          msg := sprintf("Container '%v' in %v '%v/%v' does not have any resource limits set", [
+            container.name,
+            input.review.kind.kind,
+            input.review.object.metadata.namespace,
+            input.review.object.metadata.name
+          ])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireResourceLimits
+metadata:
+  name: require-resource-limits
+  labels:
+    app.kubernetes.io/name: opa-gatekeeper
+    app.kubernetes.io/part-of: kubequest
+spec:
+  enforcementAction: warn
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
+  parameters:
+    resources:
+      - cpu
+      - memory

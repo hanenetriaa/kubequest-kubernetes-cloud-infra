@@ -1,0 +1,76 @@
+replicaCount: 2
+
+image:
+  repository: sample-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: app.kubequest.local
+  tls: []
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "250m"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - sample-app
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector:
+  node-type: application
+
+app:
+  env:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_KEY: "base64:DJYTvaRkEZ/YcQsX3TMpB0iCjgme2rhlIOus9A1hnj4="
+    DB_CONNECTION: mysql
+    DB_HOST: "{{ .Release.Name }}-mysql"
+    DB_PORT: "3306"
+    DB_DATABASE: app_database
+    DB_USERNAME: app_user
+
+mysql:
+  auth:
+    database: app_database
+    username: app_user
+    password: app_password
+    rootPassword: app_root_password
+  primary:
+    persistence:
+      size: 5Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    nodeSelector:
+      node-type: application
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
