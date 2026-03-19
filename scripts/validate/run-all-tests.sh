@@ -12,7 +12,7 @@
 # La validation locale est toujours executee.
 # La validation cluster necessite un cluster Kubernetes actif.
 # ============================================================================
-set -euo pipefail
+set -uo pipefail
 
 # --- Couleurs pour la sortie formatee ---
 GREEN='\033[0;32m'

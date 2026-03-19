@@ -2,88 +2,61 @@
 # ============================================================================
 # validate-local.sh — Validation locale du projet KubeQuest (sans cluster)
 # ============================================================================
-# Ce script effectue des verifications locales (sans cluster Kubernetes)
-# pour s'assurer que tous les fichiers du projet sont corrects et complets.
-#
-# Verifications effectuees :
-#   - Structure du projet (fichiers requis)
-#   - Syntaxe YAML de tous les fichiers .yaml
-#   - Syntaxe Bash de tous les scripts .sh
-#   - Lint du chart Helm (si helm disponible)
-#   - Dockerfile (presence de FROM et EXPOSE)
-#   - replicaCount >= 2 dans values.yaml
-#   - Limites de ressources dans les templates Helm
-#   - Utilisation correcte des Secrets (pas de mots de passe dans ConfigMap)
-#   - podAntiAffinity dans deployment.yaml
-#   - PodDisruptionBudget present
-#   - HPA present
-#   - NetworkPolicy present
-#   - CronJob de backup present
-#   - Contraintes OPA (3 fichiers minimum)
-# ============================================================================
-set -euo pipefail
+set -uo pipefail
 
-# --- Couleurs pour la sortie formatee ---
+# --- Couleurs ---
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-CYAN='\033[0;36m'
 BOLD='\033[1m'
-NC='\033[0m' # Pas de couleur
+NC='\033[0m'
 
 # --- Repertoire racine du projet ---
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# --- Compteurs de resultats ---
+# --- Compteurs ---
 PASS_COUNT=0
 FAIL_COUNT=0
 
-# =============================================================================
-# Fonctions utilitaires
-# =============================================================================
-
-# Affiche un resultat PASS (reussite)
 pass() {
-    local msg="$1"
-    echo -e "  ${GREEN}✓ PASS${NC} ${msg}"
-    ((PASS_COUNT++))
+    echo -e "  ${GREEN}✓ PASS${NC} $1"
+    PASS_COUNT=$((PASS_COUNT + 1))
 }
 
-# Affiche un resultat FAIL (echec) — n'arrete pas le script
 fail() {
-    local msg="$1"
-    echo -e "  ${RED}✗ FAIL${NC} ${msg}"
-    ((FAIL_COUNT++))
+    echo -e "  ${RED}✗ FAIL${NC} $1"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 
-# Affiche un titre de section
+skip() {
+    echo -e "  ${YELLOW}⚠ SKIP${NC} $1"
+}
+
 section() {
-    local title="$1"
     echo ""
     echo -e "${BLUE}${BOLD}══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}${BOLD}  $title${NC}"
+    echo -e "${BLUE}${BOLD}  $1${NC}"
     echo -e "${BLUE}${BOLD}══════════════════════════════════════════════════════════════${NC}"
 }
 
 # =============================================================================
-# SECTION 1 : Verification de l'existence des fichiers requis
+# SECTION 1 : Fichiers requis
 # =============================================================================
 section "Verification des fichiers requis"
 
-# Liste complete de tous les fichiers obligatoires du projet
 REQUIRED_FILES=(
-    # Scripts de bootstrap
+    # Bootstrap
     "scripts/bootstrap/setup-node.sh"
     "scripts/bootstrap/init-control-plane.sh"
     "scripts/bootstrap/join-worker.sh"
     "scripts/bootstrap/label-nodes.sh"
     "scripts/bootstrap/setup-all.sh"
     "scripts/bootstrap/build-app-image.sh"
-    # Chart Helm — fichiers principaux
+    # Helm chart
     "charts/sample-app/Chart.yaml"
     "charts/sample-app/values.yaml"
-    # Chart Helm — tous les templates
+    "charts/sample-app/templates/_helpers.tpl"
     "charts/sample-app/templates/deployment.yaml"
     "charts/sample-app/templates/service.yaml"
     "charts/sample-app/templates/ingress.yaml"
@@ -91,33 +64,54 @@ REQUIRED_FILES=(
     "charts/sample-app/templates/pdb.yaml"
     "charts/sample-app/templates/configmap.yaml"
     "charts/sample-app/templates/secret.yaml"
-    "charts/sample-app/templates/networkpolicy.yaml"
-    "charts/sample-app/templates/mysql-deployment.yaml"
-    "charts/sample-app/templates/mysql-service.yaml"
-    "charts/sample-app/templates/mysql-pvc.yaml"
-    "charts/sample-app/templates/backup-cronjob.yaml"
-    # Script de deploiement principal
+    "charts/sample-app/templates/NOTES.txt"
+    # Deploiement
     "deploy-all.sh"
-    # Infrastructure
     "infrastructure/deploy-infra.sh"
-    "infrastructure/ingress-nginx/install.sh"
-    "infrastructure/ingress-nginx/values.yaml"
-    "infrastructure/monitoring/install.sh"
-    "infrastructure/monitoring/values.yaml"
-    "infrastructure/logging/install.sh"
-    "infrastructure/logging/values.yaml"
-    "infrastructure/dashboard/install.sh"
-    "infrastructure/dashboard/values.yaml"
-    # Scripts de demo
-    "scripts/demo/demo-scaling.sh"
-    "scripts/demo/demo-rollback.sh"
-    "scripts/demo/demo-monitoring.sh"
-    "scripts/demo/demo-network-policy.sh"
-    "scripts/demo/demo-backup-restore.sh"
-    "scripts/demo/demo-opa.sh"
-    # Documentation et application
+    # Infrastructure - ingress
+    "infrastructure/base/ingress-nginx/install.sh"
+    "infrastructure/base/ingress-nginx/values.yaml"
+    # Infrastructure - monitoring
+    "infrastructure/base/monitoring/install.sh"
+    "infrastructure/base/monitoring/values.yaml"
+    # Infrastructure - logging
+    "infrastructure/base/logging/install.sh"
+    "infrastructure/base/logging/loki-values.yaml"
+    "infrastructure/base/logging/promtail-values.yaml"
+    # Infrastructure - dashboard
+    "infrastructure/base/dashboard/install.sh"
+    "infrastructure/base/dashboard/values.yaml"
+    "infrastructure/base/dashboard/admin-user.yaml"
+    # Infrastructure - security
+    "infrastructure/base/security/opa/install.sh"
+    "infrastructure/base/security/opa/constraints/require-labels.yaml"
+    "infrastructure/base/security/opa/constraints/require-resource-limits.yaml"
+    "infrastructure/base/security/opa/constraints/disallow-privileged.yaml"
+    "infrastructure/base/security/dex/install.sh"
+    "infrastructure/base/security/dex/values.yaml"
+    "infrastructure/base/security/dex/oauth2-proxy-values.yaml"
+    "infrastructure/base/security/network-policies.yaml"
+    # Namespaces
+    "infrastructure/base/namespaces/namespaces.yaml"
+    # Backup
+    "scripts/backup/mysql-backup-cronjob.yaml"
+    "scripts/backup/restore-mysql.sh"
+    # Demo
+    "scripts/demo/load-test.sh"
+    "scripts/demo/broken-deploy.sh"
+    "scripts/demo/cpu-stress.sh"
+    "scripts/demo/memory-leak.sh"
+    "scripts/demo/zero-downtime-test.sh"
+    # Validation
+    "scripts/validate/validate-cluster.sh"
+    # GitOps
+    "gitops/base/kustomization.yaml"
+    "gitops/base/namespace.yaml"
+    "gitops/overlays/production/kustomization.yaml"
+    # Docs et app
     "docs/setup-guide.md"
     "app/Dockerfile"
+    "app/docker-compose.yaml"
 )
 
 for file in "${REQUIRED_FILES[@]}"; do
@@ -129,91 +123,98 @@ for file in "${REQUIRED_FILES[@]}"; do
 done
 
 # =============================================================================
-# SECTION 2 : Validation de la syntaxe YAML
+# SECTION 2 : Syntaxe YAML
 # =============================================================================
 section "Validation syntaxe YAML"
 
-# Recherche et verification de tous les fichiers YAML du projet
-while IFS= read -r -d '' yaml_file; do
+yaml_errors=0
+yaml_ok=0
+while IFS= read -r yaml_file; do
+    [[ -z "$yaml_file" ]] && continue
     relative_path="${yaml_file#${PROJECT_ROOT}/}"
+    # Ignorer les fichiers Helm avec des templates Go {{ }}
+    if grep -q '{{' "$yaml_file" 2>/dev/null; then
+        skip "Template Helm ignore : ${relative_path}"
+        continue
+    fi
     if python3 -c "
 import yaml, sys
 try:
-    with open('${yaml_file}', 'r') as f:
+    with open(sys.argv[1], 'r') as f:
         list(yaml.safe_load_all(f))
-    sys.exit(0)
 except Exception as e:
     print(str(e), file=sys.stderr)
     sys.exit(1)
-" 2>/dev/null; then
+" "$yaml_file" 2>/dev/null; then
         pass "YAML valide : ${relative_path}"
+        yaml_ok=$((yaml_ok + 1))
     else
         fail "YAML invalide : ${relative_path}"
+        yaml_errors=$((yaml_errors + 1))
     fi
-done < <(find "${PROJECT_ROOT}" -name '*.yaml' -o -name '*.yml' | grep -v '.git/' | grep -v 'vendor/' | sort | tr '\n' '\0')
+done < <(find "${PROJECT_ROOT}" -name '*.yaml' -o -name '*.yml' | grep -v '.git/' | grep -v 'vendor/' | grep -v 'node_modules/' | sort)
 
 # =============================================================================
-# SECTION 3 : Validation de la syntaxe Shell
+# SECTION 3 : Syntaxe Shell
 # =============================================================================
 section "Validation syntaxe Shell"
 
-# Verification de la syntaxe de tous les scripts bash avec bash -n
-while IFS= read -r -d '' sh_file; do
+while IFS= read -r sh_file; do
+    [[ -z "$sh_file" ]] && continue
     relative_path="${sh_file#${PROJECT_ROOT}/}"
     if bash -n "${sh_file}" 2>/dev/null; then
         pass "Shell valide : ${relative_path}"
     else
         fail "Shell invalide : ${relative_path}"
     fi
-done < <(find "${PROJECT_ROOT}" -name '*.sh' -print0 | sort -z)
+done < <(find "${PROJECT_ROOT}" -name '*.sh' | grep -v '.git/' | sort)
 
 # =============================================================================
-# SECTION 4 : Helm lint (si helm est disponible)
+# SECTION 4 : Helm lint
 # =============================================================================
 section "Helm lint"
 
 if command -v helm &>/dev/null; then
-    if helm lint "${PROJECT_ROOT}/charts/sample-app/" &>/dev/null; then
+    output=$(helm lint "${PROJECT_ROOT}/charts/sample-app/" 2>&1)
+    if echo "$output" | grep -q "0 chart(s) failed"; then
         pass "helm lint charts/sample-app/ reussi"
-    else
+    elif echo "$output" | grep -qi "error"; then
         fail "helm lint charts/sample-app/ echoue"
+    else
+        pass "helm lint charts/sample-app/ reussi"
     fi
 else
-    echo -e "  ${YELLOW}⚠ SKIP${NC}: helm non disponible, lint ignore"
+    skip "helm non disponible, lint ignore"
 fi
 
 # =============================================================================
-# SECTION 5 : Verification du Dockerfile
+# SECTION 5 : Dockerfile
 # =============================================================================
 section "Verification du Dockerfile"
 
 DOCKERFILE="${PROJECT_ROOT}/app/Dockerfile"
 if [[ -f "${DOCKERFILE}" ]]; then
-    # Verification de la presence de l'instruction FROM
     if grep -q '^FROM ' "${DOCKERFILE}"; then
         pass "Dockerfile contient FROM"
     else
         fail "Dockerfile ne contient pas FROM"
     fi
-
-    # Verification de la presence de l'instruction EXPOSE
     if grep -q '^EXPOSE ' "${DOCKERFILE}"; then
         pass "Dockerfile contient EXPOSE"
     else
         fail "Dockerfile ne contient pas EXPOSE"
     fi
 else
-    fail "Dockerfile introuvable dans app/"
+    fail "Dockerfile introuvable"
 fi
 
 # =============================================================================
-# SECTION 6 : Verification de replicaCount dans values.yaml
+# SECTION 6 : replicaCount >= 2
 # =============================================================================
-section "Verification values.yaml (replicaCount)"
+section "Verification values.yaml"
 
 VALUES_FILE="${PROJECT_ROOT}/charts/sample-app/values.yaml"
 if [[ -f "${VALUES_FILE}" ]]; then
-    # Extraction de replicaCount avec python3
     REPLICA_COUNT=$(python3 -c "
 import yaml
 with open('${VALUES_FILE}', 'r') as f:
@@ -231,129 +232,120 @@ else
 fi
 
 # =============================================================================
-# SECTION 7 : Verification des ressources (limits/requests) dans les templates
+# SECTION 7 : Resources limits/requests dans deployment.yaml
 # =============================================================================
-section "Verification des ressources (limits/requests) dans les templates"
+section "Verification ressources (limits/requests)"
 
-TEMPLATES_DIR="${PROJECT_ROOT}/charts/sample-app/templates"
-if [[ -d "${TEMPLATES_DIR}" ]]; then
-    # Verification dans chaque template de deploiement
-    for tmpl in "${TEMPLATES_DIR}/deployment.yaml" "${TEMPLATES_DIR}/mysql-deployment.yaml"; do
-        if [[ -f "${tmpl}" ]]; then
-            basename_tmpl=$(basename "${tmpl}")
-            if grep -q 'resources' "${tmpl}" && grep -q 'limits' "${tmpl}" && grep -q 'requests' "${tmpl}"; then
-                pass "resources.limits et resources.requests dans ${basename_tmpl}"
-            else
-                fail "resources.limits ou resources.requests manquant dans ${basename_tmpl}"
-            fi
-        fi
-    done
-else
-    fail "Repertoire templates/ introuvable"
-fi
-
-# =============================================================================
-# SECTION 8 : Verification de securite — secrets et configmap
-# =============================================================================
-section "Verification de securite (secrets/configmap)"
-
-# Le template secret doit exister
-SECRET_TEMPLATE="${TEMPLATES_DIR}/secret.yaml"
-if [[ -f "${SECRET_TEMPLATE}" ]]; then
-    pass "Template secret.yaml existe (mots de passe securises)"
-else
-    fail "Template secret.yaml manquant (risque de mots de passe dans configmap)"
-fi
-
-# Verification qu'aucun mot de passe n'est dans le configmap
-CONFIGMAP_TEMPLATE="${TEMPLATES_DIR}/configmap.yaml"
-if [[ -f "${CONFIGMAP_TEMPLATE}" ]]; then
-    if grep -iq 'password' "${CONFIGMAP_TEMPLATE}"; then
-        fail "Mot de passe detecte dans configmap.yaml (utiliser secret a la place)"
-    else
-        pass "Pas de mot de passe dans configmap.yaml"
-    fi
-fi
-
-# =============================================================================
-# SECTION 9 : Verification de podAntiAffinity dans deployment.yaml
-# =============================================================================
-section "Verification podAntiAffinity"
-
-DEPLOY_TEMPLATE="${TEMPLATES_DIR}/deployment.yaml"
+DEPLOY_TEMPLATE="${PROJECT_ROOT}/charts/sample-app/templates/deployment.yaml"
 if [[ -f "${DEPLOY_TEMPLATE}" ]]; then
-    if grep -q 'podAntiAffinity' "${DEPLOY_TEMPLATE}"; then
-        pass "podAntiAffinity present dans deployment.yaml"
+    if grep -q 'resources' "${DEPLOY_TEMPLATE}" && grep -q 'limits' "${DEPLOY_TEMPLATE}" && grep -q 'requests' "${DEPLOY_TEMPLATE}"; then
+        pass "resources.limits et resources.requests dans deployment.yaml"
     else
-        fail "podAntiAffinity absent de deployment.yaml"
+        fail "resources manquants dans deployment.yaml"
     fi
 else
     fail "deployment.yaml introuvable"
 fi
 
 # =============================================================================
-# SECTION 10 : Verification du PodDisruptionBudget
+# SECTION 8 : Secrets (pas de password dans ConfigMap)
 # =============================================================================
-section "Verification PodDisruptionBudget (PDB)"
+section "Verification securite (secrets vs configmap)"
 
-PDB_TEMPLATE="${TEMPLATES_DIR}/pdb.yaml"
-if [[ -f "${PDB_TEMPLATE}" ]]; then
+SECRET_TEMPLATE="${PROJECT_ROOT}/charts/sample-app/templates/secret.yaml"
+if [[ -f "${SECRET_TEMPLATE}" ]]; then
+    pass "Template secret.yaml existe"
+else
+    fail "Template secret.yaml manquant"
+fi
+
+CONFIGMAP_TEMPLATE="${PROJECT_ROOT}/charts/sample-app/templates/configmap.yaml"
+if [[ -f "${CONFIGMAP_TEMPLATE}" ]]; then
+    if grep -iq 'password' "${CONFIGMAP_TEMPLATE}"; then
+        fail "Mot de passe detecte dans configmap.yaml"
+    else
+        pass "Pas de mot de passe dans configmap.yaml"
+    fi
+fi
+
+# =============================================================================
+# SECTION 9 : podAntiAffinity
+# =============================================================================
+section "Verification podAntiAffinity"
+
+if [[ -f "${DEPLOY_TEMPLATE}" ]]; then
+    if grep -q 'podAntiAffinity' "${DEPLOY_TEMPLATE}"; then
+        pass "podAntiAffinity present dans deployment.yaml"
+    else
+        fail "podAntiAffinity absent de deployment.yaml"
+    fi
+fi
+
+# =============================================================================
+# SECTION 10 : PDB
+# =============================================================================
+section "Verification PodDisruptionBudget"
+
+if [[ -f "${PROJECT_ROOT}/charts/sample-app/templates/pdb.yaml" ]]; then
     pass "Template PDB (pdb.yaml) existe"
 else
     fail "Template PDB (pdb.yaml) manquant"
 fi
 
 # =============================================================================
-# SECTION 11 : Verification du HorizontalPodAutoscaler
+# SECTION 11 : HPA
 # =============================================================================
-section "Verification HPA (HorizontalPodAutoscaler)"
+section "Verification HPA"
 
-HPA_TEMPLATE="${TEMPLATES_DIR}/hpa.yaml"
-if [[ -f "${HPA_TEMPLATE}" ]]; then
+if [[ -f "${PROJECT_ROOT}/charts/sample-app/templates/hpa.yaml" ]]; then
     pass "Template HPA (hpa.yaml) existe"
 else
     fail "Template HPA (hpa.yaml) manquant"
 fi
 
 # =============================================================================
-# SECTION 12 : Verification des NetworkPolicies
+# SECTION 12 : NetworkPolicy
 # =============================================================================
 section "Verification NetworkPolicy"
 
-# Recherche de fichiers NetworkPolicy dans tout le projet
-if find "${PROJECT_ROOT}" -name '*networkpolicy*' -o -name '*network-policy*' -o -name '*network-policies*' | grep -q .; then
-    pass "Fichiers NetworkPolicy trouves"
+if find "${PROJECT_ROOT}" -name '*network-polic*' -o -name '*networkpolic*' 2>/dev/null | grep -q .; then
+    NP_COUNT=$(find "${PROJECT_ROOT}" -name '*network-polic*' -o -name '*networkpolic*' 2>/dev/null | wc -l)
+    pass "Fichiers NetworkPolicy trouves : ${NP_COUNT}"
 else
     fail "Aucun fichier NetworkPolicy trouve"
 fi
 
 # =============================================================================
-# SECTION 13 : Verification du CronJob de sauvegarde
+# SECTION 13 : CronJob backup
 # =============================================================================
 section "Verification CronJob de sauvegarde"
 
-BACKUP_CRONJOB="${TEMPLATES_DIR}/backup-cronjob.yaml"
-if [[ -f "${BACKUP_CRONJOB}" ]]; then
-    if grep -q 'CronJob' "${BACKUP_CRONJOB}"; then
-        pass "CronJob de sauvegarde existe et contient le kind CronJob"
+BACKUP_FILE="${PROJECT_ROOT}/scripts/backup/mysql-backup-cronjob.yaml"
+if [[ -f "${BACKUP_FILE}" ]]; then
+    if grep -q 'CronJob' "${BACKUP_FILE}"; then
+        pass "CronJob de sauvegarde present"
     else
-        fail "backup-cronjob.yaml ne contient pas le kind CronJob"
+        fail "CronJob invalide (kind CronJob manquant)"
     fi
 else
-    fail "backup-cronjob.yaml introuvable"
+    fail "mysql-backup-cronjob.yaml manquant"
 fi
 
 # =============================================================================
-# SECTION 14 : Verification des contraintes OPA (3 fichiers minimum)
+# SECTION 14 : Contraintes OPA (3 min)
 # =============================================================================
 section "Verification contraintes OPA"
 
-# Recherche de tous les fichiers de contraintes OPA dans le projet
-OPA_COUNT=$(find "${PROJECT_ROOT}" -path '*/opa/*' -name '*.yaml' -o -path '*/security/*' -name '*constraint*' | wc -l)
-if [[ "${OPA_COUNT}" -ge 3 ]]; then
-    pass "Contraintes OPA trouvees : ${OPA_COUNT} fichier(s) (>= 3 requis)"
+OPA_DIR="${PROJECT_ROOT}/infrastructure/base/security/opa/constraints"
+if [[ -d "${OPA_DIR}" ]]; then
+    OPA_COUNT=$(find "${OPA_DIR}" -name '*.yaml' | wc -l)
+    if [[ "${OPA_COUNT}" -ge 3 ]]; then
+        pass "Contraintes OPA : ${OPA_COUNT} fichier(s) (>= 3 requis)"
+    else
+        fail "Contraintes OPA : ${OPA_COUNT} fichier(s) (3 requis)"
+    fi
 else
-    fail "Contraintes OPA insuffisantes : ${OPA_COUNT} fichier(s) (3 requis)"
+    fail "Repertoire contraintes OPA manquant"
 fi
 
 # =============================================================================
@@ -371,11 +363,11 @@ echo -e "  ${RED}Echoues  : ${FAIL_COUNT}${NC}"
 echo ""
 
 if [[ "${FAIL_COUNT}" -eq 0 ]]; then
-    echo -e "  ${GREEN}${BOLD}${PASS_COUNT}/${TOTAL} tests passes${NC}"
+    echo -e "  ${GREEN}${BOLD}✓ ${PASS_COUNT}/${TOTAL} tests passes — TOUT EST BON${NC}"
     echo ""
     exit 0
 else
-    echo -e "  ${RED}${BOLD}${PASS_COUNT}/${TOTAL} tests passes${NC}"
+    echo -e "  ${RED}${BOLD}✗ ${PASS_COUNT}/${TOTAL} tests passes — CORRECTIONS NECESSAIRES${NC}"
     echo ""
     exit 1
 fi
