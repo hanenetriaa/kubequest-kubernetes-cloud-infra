@@ -1,9 +1,9 @@
 replicaCount: 2
 
 image:
-  repository: sample-app
+  repository: hanenetriaa/sample-app
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: ClusterIP
@@ -37,7 +37,6 @@ affinity:
           topologyKey: kubernetes.io/hostname
 
 nodeSelector:
-  node-type: application
 
 app:
   env:
@@ -67,10 +66,19 @@ mysql:
         memory: "512Mi"
         cpu: "500m"
     nodeSelector:
-      node-type: application
 
 autoscaling:
   enabled: true
   minReplicas: 2
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
+
+mysql:
+  image:
+    registry: docker.io
+    repository: mysql
+    tag: "8.0"
+  primary:
+    extraEnvVars:
+      - name: MYSQL_ROOT_PASSWORD
+        value: app_root_password
