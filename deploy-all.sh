@@ -8,7 +8,7 @@ set -euo pipefail
 #   1. Creation des namespaces
 #   2. Deploiement de l'infrastructure (monitoring, ingress, etc.)
 #   3. Deploiement de l'application via Helm
-#   4. Configuration des backups
+#   4. Validation des backups
 #   5. Verification de l'etat des deploiements
 #   6. Affichage des URLs d'acces
 #
@@ -207,15 +207,17 @@ fi
 # Etape 4: Configuration des backups
 ###############################################################################
 
-print_step 4 "Configuration des sauvegardes automatiques"
+print_step 4 "Validation des sauvegardes automatiques"
 
-BACKUP_MANIFEST="${SCRIPT_DIR}/scripts/backup/mysql-backup-cronjob.yaml"
-if [[ -f "${BACKUP_MANIFEST}" ]]; then
-  log_info "Application du CronJob de backup MySQL..."
-  run_kubectl apply -f "${BACKUP_MANIFEST}"
-  log_ok "CronJob de backup configure (tous les jours a 2h00)."
+log_info "Le backup MySQL est gere par le chart Helm sample-app."
+if [[ "${DRY_RUN}" == false ]]; then
+  if kubectl get cronjob sample-app-mysql-backup -n sample-app >/dev/null 2>&1; then
+    log_ok "CronJob de backup detecte: sample-app-mysql-backup"
+  else
+    log_warn "CronJob sample-app-mysql-backup introuvable. Verifiez le chart Helm."
+  fi
 else
-  log_warn "Manifest de backup ${BACKUP_MANIFEST} introuvable. Etape ignoree."
+  log_warn "[DRY-RUN] Validation du CronJob de backup ignoree."
 fi
 
 ###############################################################################
@@ -279,7 +281,7 @@ if [[ "${DRY_RUN}" == false ]]; then
   echo ""
 
   # NodePort de l'application
-  APP_NODEPORT=$(kubectl get svc -n sample-app -l "app.kubernetes.io/name=sample-app" \
+  APP_NODEPORT=$(kubectl get svc sample-app -n sample-app \
     -o jsonpath='{.items[0].spec.ports[0].nodePort}' 2>/dev/null || echo "N/A")
   MASTER_IP=$(kubectl get nodes -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo "<MASTER_IP>")
 
