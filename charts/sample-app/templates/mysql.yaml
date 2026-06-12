@@ -12,15 +12,18 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     helm.sh/chart: {{ include "sample-app.chart" . }}
 spec:
+  # selector is immutable — keep original label to avoid recreation of existing StatefulSet
   selector:
     matchLabels:
-      app.kubernetes.io/name: mysql
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      app: {{ .Release.Name }}-mysql
   serviceName: {{ .Release.Name }}-mysql
   replicas: 1
   template:
     metadata:
       labels:
+        # Must include selector label
+        app: {{ .Release.Name }}-mysql
+        # Recommended Kubernetes labels
         app.kubernetes.io/name: mysql
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/version: "8.0"
@@ -71,12 +74,7 @@ spec:
           mountPath: /var/lib/mysql
   volumeClaimTemplates:
   - metadata:
-      name: mysql-data
-      labels:
-        app.kubernetes.io/name: mysql
-        app.kubernetes.io/instance: {{ .Release.Name }}
-        app.kubernetes.io/component: database
-        app.kubernetes.io/part-of: {{ include "sample-app.name" . }}
+        name: mysql-data
     spec:
       accessModes: ["ReadWriteOnce"]
       resources:
@@ -97,8 +95,7 @@ metadata:
     helm.sh/chart: {{ include "sample-app.chart" . }}
 spec:
   selector:
-    app.kubernetes.io/name: mysql
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app: {{ .Release.Name }}-mysql
   ports:
   - name: mysql
     port: 3306
