@@ -6,49 +6,82 @@ metadata:
   labels:
     app.kubernetes.io/name: mysql
     app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: "8.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: {{ include "sample-app.name" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "sample-app.chart" . }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-mysql
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/instance: {{ .Release.Name }}
   serviceName: {{ .Release.Name }}-mysql
   replicas: 1
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-mysql
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/version: "8.0"
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: {{ include "sample-app.name" . }}
     spec:
       containers:
       - name: mysql
-        image: mysql:8.0
+        image: {{ .Values.mysql.image.registry }}/{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}
         env:
         - name: MYSQL_ROOT_PASSWORD
-          value: {{ .Values.mysql.auth.rootPassword }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-mysql
+              key: rootPassword
         - name: MYSQL_DATABASE
-          value: {{ .Values.mysql.auth.database }}
+          value: {{ .Values.mysql.auth.database | quote }}
         - name: MYSQL_USER
-          value: {{ .Values.mysql.auth.username }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-mysql
+              key: username
         - name: MYSQL_PASSWORD
-          value: {{ .Values.mysql.auth.password }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-mysql
+              key: password
         ports:
-        - containerPort: 3306
+        - name: mysql
+          containerPort: 3306
+          protocol: TCP
+        livenessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
         resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+          {{- toYaml .Values.mysql.primary.resources | nindent 10 }}
         volumeMounts:
         - name: mysql-data
           mountPath: /var/lib/mysql
   volumeClaimTemplates:
   - metadata:
       name: mysql-data
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: {{ include "sample-app.name" . }}
     spec:
       accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: 5Gi
+          storage: {{ .Values.mysql.primary.persistence.size }}
 ---
 apiVersion: v1
 kind: Service
@@ -58,9 +91,15 @@ metadata:
   labels:
     app.kubernetes.io/name: mysql
     app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: {{ include "sample-app.name" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "sample-app.chart" . }}
 spec:
   selector:
-    app: {{ .Release.Name }}-mysql
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
-  - port: 3306
-    targetPort: 3306
+  - name: mysql
+    port: 3306
+    targetPort: mysql

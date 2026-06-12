@@ -2,14 +2,31 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Overlay de production pour KubeQuest
+# Production overlay for KubeQuest sample-app
+# Deploy:
+#   kubectl kustomize --enable-helm gitops/overlays/production | kubectl apply -f -
+#
+# Secrets must be passed at deploy time via helm set-file or --set:
+#   helm upgrade --install sample-app charts/sample-app \
+#     --namespace sample-app --create-namespace \
+#     --set mysql.auth.password=<PASSWORD> \
+#     --set mysql.auth.rootPassword=<ROOT_PASSWORD> \
+#     --set app.env.APP_KEY=<APP_KEY>
 resources:
   - ../../base
 
-# Labels specifiques a l'environnement de production
 commonLabels:
   environment: production
 
-# Annotations de production
 commonAnnotations:
   app.kubernetes.io/environment: production
+
+# Production overrides applied on top of base helmCharts values
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: sample-app

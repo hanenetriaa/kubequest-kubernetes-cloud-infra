@@ -1,0 +1,100 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sample-app.fullname" . }}-mysql-backup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sample-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "sample-app.fullname" . }}-mysql-backup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sample-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "sample-app.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backup
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "sample-app.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: mysql-backup
+              image: {{ .Values.mysql.image.registry }}/{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_FILE="/backups/${MYSQL_DATABASE}-${TIMESTAMP}.sql"
+                  echo "[INFO] Starting MySQL backup - ${TIMESTAMP}"
+                  mysqldump \
+                    -h "${MYSQL_HOST}" \
+                    -u "${MYSQL_USER}" \
+                    -p"${MYSQL_PASSWORD}" \
+                    --single-transaction \
+                    --routines \
+                    --triggers \
+                    "${MYSQL_DATABASE}" > "${BACKUP_FILE}"
+                  SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+                  echo "[INFO] Backup complete: ${BACKUP_FILE} (${SIZE})"
+                  find /backups -name "*.sql" -mtime +7 -delete
+                  echo "[INFO] Pruned backups older than 7 days."
+              env:
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-mysql
+                      key: host
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-mysql
+                      key: username
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-mysql
+                      key: password
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-mysql
+                      key: database
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: {{ include "sample-app.fullname" . }}-mysql-backup
