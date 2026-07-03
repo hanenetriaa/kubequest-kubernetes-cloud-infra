@@ -27,7 +27,7 @@ charts/sample-app/charts/
 charts/sample-app/Chart.lock
 
 # PDFs (project docs, not to be committed)
-*.pdf
+
 
 # Zip archives
 *.zip
