@@ -1,6 +1,7 @@
 grafana:
   enabled: true
-  adminPassword: kubequest
+  # Override with --set grafana.adminPassword=<your-password> at deploy time
+  adminPassword: ""
 
   ingress:
     enabled: true

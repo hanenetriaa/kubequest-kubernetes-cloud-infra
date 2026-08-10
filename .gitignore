@@ -1,33 +1,29 @@
-# Dependencies
-app/vendor/
-node_modules/
-
-# Environment
+# Secrets & environnement
 .env
+.env.local
 *.pem
+*.key
+kubeconfig
+kubeconfig.yaml
+*-kubeconfig
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
 
-# OS
+# Ansible
+*.retry
+vault_pass.txt
+
+# OS / éditeurs
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
 
-# Laravel
-app/storage/logs/*.log
-app/storage/framework/cache/data/*
-app/storage/framework/sessions/*
-app/storage/framework/views/*
-
-# Helm
-charts/sample-app/charts/
-charts/sample-app/Chart.lock
-
-# PDFs (project docs, not to be committed)
-
-
-# Zip archives
-*.zip
+# Logs
+*.log

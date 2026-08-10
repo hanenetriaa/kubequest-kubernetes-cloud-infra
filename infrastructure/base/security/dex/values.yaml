@@ -22,7 +22,8 @@ config:
   staticClients:
     - id: oauth2-proxy
       name: OAuth2 Proxy
-      secret: kubequest-oauth2-proxy-secret
+      # Override with --set config.staticClients[0].secret=<your-secret> at deploy time
+      secret: ""
       redirectURIs:
         - https://oauth2.kubequest.local/oauth2/callback
 

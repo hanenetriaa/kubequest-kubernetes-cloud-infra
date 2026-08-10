@@ -1,6 +1,6 @@
 config:
   clientID: oauth2-proxy
-  clientSecret: kubequest-oauth2-proxy-secret
+  clientSecret: "" # Override with --set config.clientSecret=<your-secret> at deploy time
   cookieSecret: ""  # Will be auto-generated if empty
 
   configFile: |-
