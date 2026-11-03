@@ -56,7 +56,7 @@ Mettre en place, de A à Z, les briques essentielles d'une plateforme Kubernetes
 | Résolution DNS interne manquante (Dex) | Ajout d'un bloc `hosts` dans la ConfigMap CoreDNS |
 | OPA bloquait le déploiement d'ArgoCD | Ajustement de l'ordre d'installation des composants |
 
-*(Liste non-exhaustive — voir la documentation complète dans `/docs`)*
+*(Liste non exhaustive — voir la [documentation du projet](Documentation/1_KubeQuest_Documentation_Projet.pdf))*
 
 ## 📂 Structure du dépôt
 
@@ -66,6 +66,7 @@ Mettre en place, de A à Z, les briques essentielles d'une plateforme Kubernetes
 ├── infrastructure/base/    # Composants d'infra (ingress, monitoring, sécurité)
 ├── gitops/                 # Manifests GitOps (overlays Kustomize)
 ├── scripts/                # Scripts d'automatisation (backup, déploiement)
+├── Documentation/          # Documentation PDF (projet, glossaire, démo, présentation)
 └── deploy-all.sh           # Déploiement complet en une commande
 ```
 
@@ -77,9 +78,15 @@ bash deploy-all.sh
 
 > Les valeurs sensibles (mots de passe, secrets OAuth) ne sont **jamais** committées. Elles doivent être fournies via `--set` au moment du déploiement Helm, ou via un fichier `.env` local (voir `.env.example`).
 
-## 📝 Documentation complète
+## 📝 Documentation
 
-Le détail complet de l'implémentation (commandes, choix techniques, limites connues) est disponible dans [`/docs`](./docs).
+| Document | Contenu |
+|---|---|
+| [📘 Documentation du projet](Documentation/1_KubeQuest_Documentation_Projet.pdf) | Implémentation détaillée, choix techniques, limites connues |
+| [📖 Glossaire](Documentation/2_KubeQuest_Glossaire.pdf) | Les notions Kubernetes et DevOps expliquées simplement |
+| [⌨️ Commandes de démonstration](Documentation/3_KubeQuest_Commandes_Demo.pdf) | Scénario de démo pas à pas (HPA, rollback, GitOps…) |
+| [🎤 Présentation](Documentation/4_KubeQuest_Presentation.pdf) | Support de soutenance |
+| [🛠️ Guide d'installation](docs/setup-guide.md) | Mise en place du cluster |
 
 ## ⚠️ Limites connues
 
