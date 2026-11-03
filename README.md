@@ -2,6 +2,8 @@
 
 Projet personnel réalisé dans le cadre de mon Master Architecte Systèmes d'Information (EPITECH Nice), avec l'assistance de Claude AI pour la recherche et le debugging.
 
+<p align="center"><img src="docs/images/01-titre.png" width="760" alt="KubeQuest — Plateforme Kubernetes de production sur AWS"></p>
+
 Déploiement d'une infrastructure Kubernetes complète et industrialisable sur AWS : cluster, monitoring, logging, sécurité, GitOps et déploiement d'application — en partant de zéro sur des instances EC2 vierges.
 
 ## 🎯 Objectif du projet
@@ -25,6 +27,14 @@ Mettre en place, de A à Z, les briques essentielles d'une plateforme Kubernetes
 - **Réseau** : Flannel CNI
 
 > ⚠️ Le cluster de démonstration a depuis été démantelé (instances EC2 arrêtées) pour éviter les coûts. Ce dépôt documente l'infrastructure telle qu'elle a été construite et testée.
+
+## 🖼️ Aperçu
+
+| Architecture sur AWS | Observabilité |
+|---|---|
+| <img src="docs/images/02-architecture.png" alt="Architecture : 4 VMs AWS, control plane et worker"> | <img src="docs/images/03-observabilite.png" alt="Prometheus, Grafana, Loki et Promtail"> |
+| **GitOps avec ArgoCD** | **Démonstrations : HPA, rollback, backup, GitOps** |
+| <img src="docs/images/04-gitops.png" alt="Chaîne GitOps : développeur, GitHub, ArgoCD, cluster"> | <img src="docs/images/05-demos.png" alt="Résultats des 4 démonstrations"> |
 
 ## 🧩 Stack technique
 
